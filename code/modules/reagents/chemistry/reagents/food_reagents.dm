@@ -383,10 +383,6 @@
 	taste_description = "bitterness"
 	var/toxpwr = 0
 
-///datum/reagent/consumable/coco/on_mob_life(mob/living/carbon/M)
-//	if(isfelinid(M))
-//		toxpwr = 2
-//	..()
 
 /datum/reagent/drug/mushroomhallucinogen
 	name = "Mushroom Hallucinogen"
