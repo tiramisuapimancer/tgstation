@@ -381,6 +381,12 @@
 	nutriment_factor = 5 * REAGENTS_METABOLISM
 	color = "#302000" // rgb: 48, 32, 0
 	taste_description = "bitterness"
+	var/toxpwr = 0
+
+///datum/reagent/consumable/coco/on_mob_life(mob/living/carbon/M)
+//	if(isfelinid(M))
+//		toxpwr = 2
+//	..()
 
 /datum/reagent/drug/mushroomhallucinogen
 	name = "Mushroom Hallucinogen"

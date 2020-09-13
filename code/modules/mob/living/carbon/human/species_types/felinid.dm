@@ -5,6 +5,9 @@
 	say_mod = "meows"
 	limbs_id = "human"
 
+	disliked_food = VEGETABLES | SUGAR
+	liked_food = DAIRY | MEAT
+
 	mutant_bodyparts = list("ears", "tail_human")
 	default_features = list("mcolor" = "FFF", "tail_human" = "Cat", "ears" = "Cat", "wings" = "None")
 
@@ -14,6 +17,14 @@
 	species_language_holder = /datum/language_holder/felinid
 	var/original_felinid = TRUE //set to false for felinids created by mass-purrbation
 	payday_modifier = 0.75
+
+//Trading off scott free carpotoxin for chocolates
+
+/datum/species/human/felinid/handle_chemicals(datum/reagent/chem, mob/living/carbon/human/H)
+	. = ..()
+	if(chem.type == /datum/reagent/consumable/coco || chem.type == /datum/reagent/consumable/hot_coco || chem.type == /datum/reagent/consumable/milk/chocolate_milk)
+		H.adjustToxLoss(2)
+		H.reagents.remove_reagent(chem.type, REAGENTS_METABOLISM)
 
 //Curiosity killed the cat's wagging tail.
 /datum/species/human/felinid/spec_death(gibbed, mob/living/carbon/human/H)
@@ -121,3 +132,4 @@
 				new_ears.Insert(H, TRUE, FALSE)
 	if(!silent)
 		to_chat(H, "<span class='boldnotice'>You are no longer a cat.</span>")
+
