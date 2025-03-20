@@ -13,14 +13,11 @@ Format:
 	votable (is this map votable)
 endmap
 
-map metastation
-	#default
-	minplayers 25
-	#voteweight 0.5
-	votable
-endmap
+# Production-level maps.
 
-map pubbystation
+map birdshot
+	#default
+	maxplayers 66
 	votable
 endmap
 
@@ -34,8 +31,34 @@ map icebox
 	votable
 endmap
 
-map runtimestation
+map metastation
+	minplayers 25
+	#voteweight 0.5
+	votable
+endmap
+
+map tramstation
+	minplayers 35
+	votable
+endmap
+
+map nebulastation
+	minplayers 35
+	votable
+endmap
+
+map wawastation
+	votable
+	minplayers 40
+endmap
+
+# Debug-only maps.
+
+map gateway_test
 endmap
 
 map multiz_debug
+endmap
+
+map runtimestation
 endmap

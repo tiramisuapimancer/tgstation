@@ -7,6 +7,7 @@
 	circuit = /obj/item/circuitboard/computer/mecha_control
 
 /obj/machinery/computer/mecha/ui_interact(mob/user, datum/tgui/ui)
+	. = ..()
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(!ui)
 		ui = new(user, src, "ExosuitControlConsole", name)
@@ -26,27 +27,27 @@
 		var/obj/vehicle/sealed/mecha/M = MT.chassis
 		var/list/mech_data = list(
 			name = M.name,
-			integrity = round((M.obj_integrity / M.max_integrity) * 100),
+			integrity = round((M.get_integrity() / M.max_integrity) * 100),
 			charge = M.cell ? round(M.cell.percent()) : null,
-			airtank = M.internal_tank ? M.return_pressure() : null,
+			airtank = (M.mecha_flags & IS_ENCLOSED) ? M.return_pressure() : null,
 			pilot = M.return_drivers(),
 			location = get_area_name(M, TRUE),
-			active_equipment = M.selected,
 			emp_recharging = MT.recharging,
 			tracker_ref = REF(MT)
 		)
-		if(istype(M, /obj/vehicle/sealed/mecha/working/ripley))
-			var/obj/vehicle/sealed/mecha/working/ripley/RM = M
+		if(istype(M, /obj/vehicle/sealed/mecha/ripley))
+			var/obj/vehicle/sealed/mecha/ripley/workmech = M
 			mech_data += list(
-				cargo_space = round((RM.cargo.len / RM.cargo_capacity) * 100)
+				cargo_space = round(workmech.cargo_hold.contents.len / workmech.cargo_hold.cargo_capacity * 100)
 		)
 
 		data["mechs"] += list(mech_data)
 
 	return data
 
-/obj/machinery/computer/mecha/ui_act(action, params)
-	if(..())
+/obj/machinery/computer/mecha/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
 		return
 
 	switch(action)
@@ -54,11 +55,11 @@
 			var/obj/item/mecha_parts/mecha_tracking/MT = locate(params["tracker_ref"])
 			if(!istype(MT))
 				return
-			var/message = stripped_input(usr, "Input message", "Transmit message")
+			var/message = tgui_input_text(usr, "Input message", "Transmit message", max_length = MAX_MESSAGE_LEN)
 			var/obj/vehicle/sealed/mecha/M = MT.chassis
 			if(trim(message) && M)
 				to_chat(M.occupants, message)
-				to_chat(usr, "<span class='notice'>Message sent.</span>")
+				to_chat(usr, span_notice("Message sent."))
 				. = TRUE
 		if("shock")
 			var/obj/item/mecha_parts/mecha_tracking/MT = locate(params["tracker_ref"])
@@ -67,14 +68,15 @@
 			var/obj/vehicle/sealed/mecha/M = MT.chassis
 			if(M)
 				MT.shock()
-				log_game("[key_name(usr)] has activated remote EMP on exosuit [M], located at [loc_name(M)], which [M.occupants ? "has the occupants [M.occupants]." : "without a pilot."] ")
-				message_admins("[key_name_admin(usr)][ADMIN_FLW(usr)] has activated remote EMP on exosuit [M][ADMIN_JMP(M)], which is currently [M.occupants ? "occupied by [M.occupants][ADMIN_FLW(M)]." : "without a pilot."] ")
+				usr.log_message("has activated remote EMP on exosuit [M], located at [loc_name(M)], which is currently [LAZYLEN(M.occupants) ? "occupied by [M.occupants.Join(", ")]." : "without a pilot."]", LOG_ATTACK)
+				usr.log_message("has activated remote EMP on exosuit [M], located at [loc_name(M)], which is currently [LAZYLEN(M.occupants) ? "occupied by [M.occupants.Join(", ")]." : "without a pilot."]", LOG_GAME, log_globally = FALSE)
+				message_admins("[key_name_admin(usr)][ADMIN_FLW(usr)] has activated remote EMP on exosuit [M][ADMIN_JMP(M)], which is currently [LAZYLEN(M.occupants) ? "occupied by [M.occupants.Join(",")][ADMIN_FLW(M)]." : "without a pilot."]")
 				. = TRUE
 
 /obj/item/mecha_parts/mecha_tracking
 	name = "exosuit tracking beacon"
 	desc = "Device used to transmit exosuit data."
-	icon = 'icons/obj/device.dmi'
+	icon = 'icons/obj/devices/new_assemblies.dmi'
 	icon_state = "motion2"
 	w_class = WEIGHT_CLASS_SMALL
 	/// If this beacon allows for AI control. Exists to avoid using istype() on checking
@@ -85,27 +87,26 @@
 	var/obj/vehicle/sealed/mecha/chassis
 
 /**
-  * Returns a html formatted string describing attached mech status
-  */
+ * Returns a html formatted string describing attached mech status
+ */
 /obj/item/mecha_parts/mecha_tracking/proc/get_mecha_info()
 	if(!chassis)
 		return FALSE
 
 	var/cell_charge = chassis.get_charge()
 	var/answer = {"<b>Name:</b> [chassis.name]<br>
-				<b>Integrity:</b> [round((chassis.obj_integrity/chassis.max_integrity * 100), 0.01)]%<br>
+				<b>Integrity:</b> [round((chassis.get_integrity()/chassis.max_integrity * 100), 0.01)]%<br>
 				<b>Cell Charge:</b> [isnull(cell_charge) ? "Not Found":"[chassis.cell.percent()]%"]<br>
-				<b>Airtank:</b> [chassis.internal_tank ? "[round(chassis.return_pressure(), 0.01)]" : "Not Equipped"] kPa<br>
-				<b>Pilot:</b> [chassis.return_drivers() || "None"]<br>
-				<b>Location:</b> [get_area_name(chassis, TRUE) || "Unknown"]<br>
-				<b>Active Equipment:</b> [chassis.selected || "None"]"}
-	if(istype(chassis, /obj/vehicle/sealed/mecha/working/ripley))
-		var/obj/vehicle/sealed/mecha/working/ripley/RM = chassis
-		answer += "<br><b>Used Cargo Space:</b> [round((RM.cargo.len / RM.cargo_capacity * 100), 0.01)]%"
+				<b>Cabin Pressure:</b> [(chassis.mecha_flags & IS_ENCLOSED) ? "[round(chassis.return_pressure(), 0.01)] kPa" : "Not Sealed"]<br>
+				<b>Pilot:</b> [english_list(chassis.return_drivers(), nothing_text = "None")]<br>
+				<b>Location:</b> [get_area_name(chassis, TRUE) || "Unknown"]"}
+	if(istype(chassis, /obj/vehicle/sealed/mecha/ripley))
+		var/obj/item/mecha_parts/mecha_equipment/ejector/cargo_holder = locate(/obj/item/mecha_parts/mecha_equipment/ejector) in chassis.equip_by_category[MECHA_UTILITY]
+		answer += "<br><b>Used Cargo Space:</b> [round((cargo_holder.contents.len / cargo_holder.cargo_capacity * 100), 0.01)]%"
 
 	return answer
 
-/obj/item/mecha_parts/mecha_tracking/emp_act()
+/obj/item/mecha_parts/mecha_tracking/emp_act(severity)
 	. = ..()
 	if(!(. & EMP_PROTECT_SELF))
 		qdel(src)
@@ -117,7 +118,7 @@
 	chassis = null
 	return ..()
 
-/obj/item/mecha_parts/mecha_tracking/try_attach_part(mob/user, obj/vehicle/sealed/mecha/M)
+/obj/item/mecha_parts/mecha_tracking/try_attach_part(mob/user, obj/vehicle/sealed/mecha/M, attach_right = FALSE)
 	if(!..())
 		return
 	M.trackers += src
@@ -125,19 +126,19 @@
 	chassis = M
 
 /**
-  * Attempts to EMP mech that the tracker is attached to, if there is one and tracker is not on cooldown
-  */
+ * Attempts to EMP mech that the tracker is attached to, if there is one and tracker is not on cooldown
+ */
 /obj/item/mecha_parts/mecha_tracking/proc/shock()
 	if(recharging)
 		return
 	if(chassis)
 		chassis.emp_act(EMP_HEAVY)
-		addtimer(CALLBACK(src, /obj/item/mecha_parts/mecha_tracking/proc/recharge), 5 SECONDS, TIMER_UNIQUE | TIMER_OVERRIDE)
+		addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/item/mecha_parts/mecha_tracking, recharge)), 5 SECONDS, TIMER_UNIQUE | TIMER_OVERRIDE)
 		recharging = TRUE
 
 /**
-  * Resets recharge variable, allowing tracker to be EMP pulsed again
-  */
+ * Resets recharge variable, allowing tracker to be EMP pulsed again
+ */
 /obj/item/mecha_parts/mecha_tracking/proc/recharge()
 	recharging = FALSE
 
